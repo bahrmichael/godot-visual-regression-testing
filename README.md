@@ -13,20 +13,25 @@ generated video that we know is correct).
 ### Prerequisites
 
 1. Install [Godot 4.4 Stable](https://godotengine.org/download)
-2. Install [Go 1.23](https://go.dev/doc/install)
-3. Install imagemagick (with homebrew on macOS: `brew install imagemagick`)
-4. Install ffmpeg (with homebrew on macOS: `brew install ffmpeg`)
+2. Install imagemagick (with homebrew on macOS: `brew install imagemagick`)
+3. Install ffmpeg (with homebrew on macOS: `brew install ffmpeg`)
+
+### Download the executable
+
+You can get it here: https://github.com/bahrmichael/godot-visual-regression-testing/releases/tag/alpha-0.1
+
+You can also build it yourself by installing go 1.23 and running `go build .` in the root of this repository.
 
 ### Create a baseline video
 
 ```
-go run . --godot path_to_godot --project path_to_project --scene scene.tscn
+godot-vrt-mac . --godot path_to_godot_binary --project path_to_project --scene scene.tscn
 ```
 
 ### Compare against a baseline video
 
 ```
-go run . --godot path_to_godot --project path_to_project --scene scene.tscn --baseline baseline.avi
+godot-vrt-mac . --godot path_to_godot_binary --project path_to_project --scene scene.tscn --baseline baseline.avi
 ```
 
 ## Example
@@ -39,7 +44,7 @@ make sure doesn't change accidentally.
 We first run this tool to generate a baseline video:
 
 ```shell
-go run . --godot /Applications/Godot.app/Contents/MacOS/Godot --project /Users/me/Downloads/sprout-lands --scene scenes/test/test_scene_npc_cow.tscn
+./godot-vrt-mac --godot /Applications/Godot.app/Contents/MacOS/Godot --project /Users/me/Downloads/sprout-lands --scene scenes/test/test_scene_npc_cow.tscn
 ```
  
 This results in a video file being generated:
@@ -51,7 +56,7 @@ Rendered scene at baseline_1221468695.avi
 We can then run the tool again with the baseline video, and it will compare the generated video to the baseline video:
 
 ```shell
-go run . --godot /Applications/Godot.app/Contents/MacOS/Godot --project /Users/me/Downloads/sprout-lands --scene scenes/test/test_scene_npc_cow.tscn --baseline baseline_1221468695.avi
+./godot-vrt-mac --godot /Applications/Godot.app/Contents/MacOS/Godot --project /Users/me/Downloads/sprout-lands --scene scenes/test/test_scene_npc_cow.tscn --baseline baseline_1221468695.avi
 ```
 
 ```text

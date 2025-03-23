@@ -18,7 +18,7 @@ generated video that we know is correct).
 
 ### Download the executable
 
-You can get it here: https://github.com/bahrmichael/godot-visual-regression-testing/releases/tag/alpha-0.1
+You can get it here: https://github.com/bahrmichael/godot-visual-regression-testing/releases
 
 You can also build it yourself by installing go 1.23 and running `go build .` in the root of this repository.
 

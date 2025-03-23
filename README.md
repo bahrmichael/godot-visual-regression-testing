@@ -17,6 +17,18 @@ generated video that we know is correct).
 3. Install imagemagick (with homebrew on macOS: `brew install imagemagick`)
 4. Install ffmpeg (with homebrew on macOS: `brew install ffmpeg`)
 
+### Create a baseline video
+
+```
+go run . --godot path_to_godot --project path_to_project --scene scene.tscn
+```
+
+### Compare against a baseline video
+
+```
+go run . --godot path_to_godot --project path_to_project --scene scene.tscn --baseline baseline.avi
+```
+
 ## Example
 
 Below you can see a player character idling on an island. The character has an idling animation, that we want to
@@ -27,7 +39,7 @@ make sure doesn't change accidentally.
 We first run this tool to generate a baseline video:
 
 ```shell
-go run . --godot path_to_godot --project path_to_project --scene path/to/scene.tscn
+go run . --godot /Applications/Godot.app/Contents/MacOS/Godot --project /Users/me/Downloads/sprout-lands --scene scenes/test/test_scene_npc_cow.tscn
 ```
  
 This results in a video file being generated:
@@ -39,7 +51,7 @@ Rendered scene at baseline_1221468695.avi
 We can then run the tool again with the baseline video, and it will compare the generated video to the baseline video:
 
 ```shell
-go run . --godot path_to_godot --project path_to_project --scene path/to/scene.tscn --baseline baseline_1221468695.avi
+go run . --godot /Applications/Godot.app/Contents/MacOS/Godot --project /Users/me/Downloads/sprout-lands --scene scenes/test/test_scene_npc_cow.tscn --baseline baseline_1221468695.avi
 ```
 
 ```text

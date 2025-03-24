@@ -93,3 +93,7 @@ You can then open the diff video to see what changed. It shows the two videos si
 - ffmpeg
 - go 1.23
 - godot 4.4.stable
+
+## Want an easier testing experience?
+
+If you don't want to manage the open‑source CLI on your own, or if you just want to support this project, consider joining the early access of [Godot Foresight](https://github.com/bahrmichael/vrt-marketing)! With Godot Foresight, enjoy a hassle‑free, fully managed solution for visual regression and end-to-end testing — so you can focus on creating games.

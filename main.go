@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"image"
 	_ "image/png" // This registers PNG format via init() for pixel comparison
-	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,99 +14,176 @@ import (
 )
 
 type Config struct {
-	GodotPath          string
-	ProjectPath        string
-	Scene              string
-	Duration           int
-	BaselineOutputFile string
-	DiffOutputFile     string
-	Baseline           string
-	Headless           bool
-	Verbose            bool
+	Godot           string
+	Scenes          string
+	Duration        int
+	Baseline        string
+	Verbose         bool
+	TmpDir          string
+	ResultDir       string
+	RetainRenderDir bool
 }
 
 var defaultConfig = Config{
-	Duration:           60,
-	BaselineOutputFile: fmt.Sprintf("baseline_%d.avi", rand.Int31()),
-	DiffOutputFile:     fmt.Sprintf("diff_%d.avi", rand.Int31()),
+	Duration:  60,
+	TmpDir:    ".",
+	ResultDir: ".",
 }
 
 func main() {
-	config := parseFlags()
+	command, config := parseFlags()
 
-	err := verifyGodotInstallation(config.GodotPath)
+	err := verifyGodotInstallation(config.Godot)
 	if err != nil {
 		fmt.Println("Error: " + err.Error())
 		os.Exit(1)
 	}
-
-	dir := os.TempDir()
-	defer os.RemoveAll(dir)
-
-	renderedScene, err := renderScene(dir, config)
+	_, err = exec.LookPath("ffmpeg")
 	if err != nil {
-		fmt.Println(err.Error())
+		fmt.Println("Error: ffmpeg not found. Please install ffmpeg.")
 		os.Exit(1)
 	}
-	if config.Baseline == "" {
-		err := os.Rename(renderedScene, config.BaselineOutputFile)
+
+	if !strings.HasSuffix(config.TmpDir, "/") {
+		config.TmpDir = config.TmpDir + "/"
+	}
+	if !strings.HasSuffix(config.ResultDir, "/") {
+		config.ResultDir = config.ResultDir + "/"
+	}
+
+	if command == "baseline" {
+		_, err := renderScenes(config)
 		if err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
 		}
-		fmt.Println("Rendered scene at " + config.BaselineOutputFile)
-	} else {
-		h, err := hasDiff(dir, renderedScene, config)
-		if !h {
-			fmt.Println("No difference between the baseline and the scene.")
-			return
+	} else if command == "test" {
+		failedDiffs, err := testScenes(config)
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(1)
 		}
 
-		d, err := generateComparison(dir, config.Baseline, renderedScene)
-		if err != nil {
-			fmt.Println(err.Error())
+		if len(failedDiffs) > 0 {
+			fmt.Println("Failed diffs:")
+			for _, diff := range failedDiffs {
+				fmt.Println(diff)
+			}
 			os.Exit(1)
 		}
-
-		err = os.Rename(d, config.DiffOutputFile)
-		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
-		}
-		fmt.Println("Diff rendered at " + config.DiffOutputFile)
 	}
 }
 
-func parseFlags() Config {
+func testScenes(config Config) ([]string, error) {
+	// list all sceneFiles at config.Scenes (that's a glob)
+	sceneFiles, err := filepath.Glob(config.Scenes)
+	if err != nil {
+		return nil, fmt.Errorf("error listing sceneFiles: %v", err)
+	}
+	baselineFiles, err := filepath.Glob(config.Baseline)
+	if err != nil {
+		return nil, fmt.Errorf("error listing sceneFiles: %v", err)
+	}
+
+	// there must be a baseline for each scene if we're in test mode
+	var missingBaselines []string
+	for _, file := range sceneFiles {
+		target := strings.Replace(file, ".tscn", ".avi", 1)
+		if !slices.Contains(baselineFiles, target) {
+			missingBaselines = append(missingBaselines, file)
+		}
+	}
+	if len(missingBaselines) > 0 {
+		return nil, fmt.Errorf("missing baselines for scenes: %v", missingBaselines)
+	}
+
+	renderDir, err := os.MkdirTemp(config.TmpDir, "renders_")
+	if err != nil {
+		return nil, fmt.Errorf("error creating temp dir: %v", err)
+	}
+	if !strings.HasSuffix(renderDir, "/") {
+		renderDir = renderDir + "/"
+	}
+	if !config.RetainRenderDir {
+		defer os.RemoveAll(renderDir)
+	}
+
+	// for each file, render it
+	defaultArgs := []string{
+		"--quit-after",
+		strconv.Itoa(config.Duration),
+	}
+	var failedDiffs []string
+
+	for _, file := range sceneFiles {
+		sceneName := strings.Replace(file, ".tscn", "", 1)
+
+		actualPathFile := fmt.Sprintf("%s%s%s", renderDir, sceneName, "_actual.avi")
+		err := os.MkdirAll(filepath.Dir(actualPathFile), 0755)
+		if err != nil {
+			return nil, fmt.Errorf("error creating dir: %v", err)
+		}
+		renderedScene, err := renderScene(file, actualPathFile, defaultArgs, config)
+		if err != nil {
+			return nil, fmt.Errorf("error rendering file: %v", err)
+		}
+
+		baseline := fmt.Sprintf("%s%s", sceneName, ".avi")
+		diffOutFile := fmt.Sprintf("%s%s%s", renderDir, sceneName, "_diff.avi")
+		err = os.MkdirAll(filepath.Dir(diffOutFile), 0755)
+		if err != nil {
+			return nil, fmt.Errorf("error creating dir: %v", err)
+		}
+		h, err := hasDiff(renderedScene, baseline, diffOutFile, config)
+		if h {
+			d, err := generateComparison(sceneName, renderedScene, baseline, config)
+			if err != nil {
+				return nil, fmt.Errorf("error generating comparison: %v", err)
+			}
+			failedDiffs = append(failedDiffs, d)
+		}
+	}
+
+	return failedDiffs, nil
+}
+
+func parseFlags() (string, Config) {
 	config := defaultConfig
 
-	flag.StringVar(&config.GodotPath, "godot", config.GodotPath, "Path to Godot executable")
-	flag.StringVar(&config.ProjectPath, "project", config.ProjectPath, "Path to Godot project")
-	flag.StringVar(&config.Scene, "scene", config.Scene, "Scene to render")
-	flag.StringVar(&config.Baseline, "baseline", config.Baseline, "Baseline to compare the render against")
+	flag.StringVar(&config.TmpDir, "workdir", config.TmpDir, "Path to workdir")
+	flag.StringVar(&config.Godot, "godot", config.Godot, "Path to Godot executable")
+	flag.StringVar(&config.Scenes, "scenes", config.Scenes, "Glob path to the .tscn files")
+	flag.StringVar(&config.Baseline, "baseline", config.Baseline, "Glob path to the baseline .avi files")
 	flag.IntVar(&config.Duration, "duration", config.Duration, "Duration of video capture in frames")
-	flag.StringVar(&config.BaselineOutputFile, "baseline-output", config.BaselineOutputFile, "Output file path for the render or diff video")
-	flag.StringVar(&config.DiffOutputFile, "diff-output", config.DiffOutputFile, "Output file path for the render or diff video")
-	flag.BoolVar(&config.Headless, "headless", config.Headless, "Running headless")
 	flag.BoolVar(&config.Verbose, "verbose", config.Verbose, "Running verbose")
+	flag.BoolVar(&config.RetainRenderDir, "retain-render-dir", config.RetainRenderDir, "Retain render dir")
+
 	helpFlag := flag.Bool("help", false, "Show help information")
+	command := flag.String("command", "", "Command to run (baseline or test)")
 
 	flag.Parse()
 
-	if *helpFlag {
-		showHelp()
+	if command == nil || *command == "" {
+		showHelp("")
+		os.Exit(0)
+	} else if *helpFlag {
+		showHelp(*command)
+		os.Exit(0)
 	}
 
 	var missingFlags []string
 
-	if config.GodotPath == "" {
+	if config.Godot == "" {
 		missingFlags = append(missingFlags, "godot")
 	}
-	if config.ProjectPath == "" {
-		missingFlags = append(missingFlags, "project")
+	if config.Scenes == "" {
+		missingFlags = append(missingFlags, "scenes")
 	}
-	if config.Scene == "" {
-		missingFlags = append(missingFlags, "scene")
+
+	if *command == "test" {
+		if config.Baseline == "" {
+			missingFlags = append(missingFlags, "baseline")
+		}
 	}
 
 	if len(missingFlags) > 0 {
@@ -119,37 +195,41 @@ func parseFlags() Config {
 		os.Exit(1)
 	}
 
-	return config
+	return *command, config
 }
 
-func showHelp() {
-	fmt.Println("Godot Scene Diff Tool")
+func showHelp(command string) {
+	fmt.Println("Godot Visual Regression Tester (VRT)")
 	fmt.Println("Renders two Godot scenes and generates a visual diff video")
 	fmt.Println()
-	fmt.Println("Required flags:")
-	fmt.Println("  --godot    Path to Godot executable")
-	fmt.Println("  --project  Path to the project root")
-	fmt.Println("  --scene    Scene to render from the project root")
-	fmt.Println()
+	if command == "" {
+		fmt.Println("Available commands: ")
+		fmt.Println("  baseline")
+		fmt.Println("  test")
+		fmt.Println()
+	} else {
+		fmt.Println("Required flags:")
+		fmt.Println("  --godot    Godot executable (can be a path or the name of the executable)")
+		fmt.Println("  --scenes   Glob path to the .tscn files")
+		fmt.Println()
+	}
 	fmt.Println("Optional flags:")
-	fmt.Println()
 	fmt.Println("  --help              Show this help message")
-	fmt.Println("  --verbose           Activates verbose mode for debugging")
-	fmt.Println("  --duration          The number of frames to render (default: 60)")
-	fmt.Println("  --baseline          A baseline video to compare the render against")
-	fmt.Println("  --headless          Runs godot in headless mode (doesn't work on macos)")
-	fmt.Println("  --baseline-output   Output file path for the new baseline video")
-	fmt.Println("  --diff-output       Output file path for the diff video")
-	os.Exit(0)
+	if command != "" {
+		fmt.Println("  --verbose           Activates verbose mode for debugging")
+		fmt.Println("  --duration          The number of frames to render (default: 60)")
+	}
+	if command == "test" {
+		fmt.Println("  --baseline          Glob path to the baseline .avi files")
+	}
 }
 
-func hasDiff(dir, f2 string, config Config) (bool, error) {
-	outFile := fmt.Sprintf("%s%d.avi", dir, rand.Int31())
+func hasDiff(renderedVideo, baselineVideo, outFile string, config Config) (bool, error) {
 	args := []string{
 		"-i",
-		config.Baseline,
+		baselineVideo,
 		"-i",
-		f2,
+		renderedVideo,
 		"-filter_complex",
 		"blend=all_mode=difference",
 		outFile,
@@ -163,28 +243,46 @@ func hasDiff(dir, f2 string, config Config) (bool, error) {
 		return false, fmt.Errorf("generating diff video: %v %s", err, stderr)
 	}
 
+	fileInfo, err := os.Stat(outFile)
+	if err != nil {
+		return false, fmt.Errorf("error getting diff file info: %v", err)
+	}
+	if fileInfo.Size() == 0 {
+		return false, fmt.Errorf("error: diff file is empty")
+	}
+
 	return HasMultiplePixelValues(outFile, config)
 }
 
-func generateComparison(dir, f1, f2 string) (string, error) {
-	outFile := fmt.Sprintf("%s%d%s", dir, rand.Int31(), ".avi")
+func generateComparison(sceneName, rendered, baseline string, config Config) (string, error) {
+	outFile := fmt.Sprintf("%s%s%s%s%s", config.ResultDir, filepath.Dir(sceneName), "/comparison_", filepath.Base(sceneName), ".avi")
+	args := []string{
+		"-y",
+		"-loglevel",
+		"error",
+		"-i",
+		baseline,
+		"-i",
+		rendered,
+		"-filter_complex",
+		"[0:v][1:v]blend=all_mode=difference[diff];[0:v][1:v][diff]hstack=inputs=3",
+		outFile,
+	}
+
 	_, stderr, err := executeCommandUnsafe(
 		"ffmpeg",
-		[]string{
-			"-y",
-			"-loglevel",
-			"error",
-			"-i",
-			f1,
-			"-i",
-			f2,
-			"-filter_complex",
-			"[0:v][1:v]blend=all_mode=difference[diff];[0:v][1:v][diff]hstack=inputs=3",
-			outFile,
-		})
+		args)
 
 	if err != nil {
 		return "", fmt.Errorf("generating comparison video: %v %s", err, stderr)
+	}
+
+	fileInfo, err := os.Stat(outFile)
+	if err != nil {
+		return "", fmt.Errorf("error getting comparison file info: %v", err)
+	}
+	if fileInfo.Size() == 0 {
+		return "", fmt.Errorf("error: comparison file is empty")
 	}
 
 	return outFile, nil
@@ -208,27 +306,49 @@ func verifyGodotInstallation(godotPath string) error {
 	return nil
 }
 
-func renderScene(dir string, config Config) (string, error) {
+func renderScenes(config Config) ([]string, error) {
 
-	outputFile := fmt.Sprintf("%s%d.avi", dir, rand.Int31())
-	args := []string{
-		"--write-movie",
-		outputFile,
+	// list all sceneFiles at config.Scenes (that's a glob)
+	sceneFiles, err := filepath.Glob(config.Scenes)
+	if err != nil {
+		return nil, fmt.Errorf("error listing sceneFiles: %v", err)
+	}
+	// for each file, render it
+	defaultArgs := []string{
 		"--quit-after",
 		strconv.Itoa(config.Duration),
-		"--path",
-		fmt.Sprintf("%s", config.ProjectPath),
-		fmt.Sprintf("%s", config.Scene),
 	}
-	if config.Headless {
-		args = slices.Insert(args, 0, "--headless")
+	renderedAvis := make([]string, 0, len(sceneFiles))
+	for _, file := range sceneFiles {
+		b, err := renderScene(file, strings.Replace(file, ".tscn", ".avi", 1), defaultArgs, config)
+		if err != nil {
+			return nil, fmt.Errorf("error rendering file: %v", err)
+		}
+		renderedAvis = append(renderedAvis, b)
 	}
+
+	return renderedAvis, nil
+}
+
+func renderScene(scene, outputFile string, args []string, config Config) (string, error) {
+	args = append(args, "--write-movie", outputFile, scene)
 	if config.Verbose {
 		args = slices.Insert(args, 0, "--verbose")
 	}
-	_, stderr, err := executeCommandUnsafe(config.GodotPath, args)
+	stdout, stderr, err := executeCommandUnsafe(config.Godot, args)
+	if config.Verbose {
+		fmt.Println(stdout)
+		fmt.Println(stderr)
+	}
 	if err != nil {
-		return "", fmt.Errorf("error writing movie: %v %s", err, stderr)
+		return "", fmt.Errorf("error rendering scene: %v %s", err, stderr)
+	}
+	fileInfo, err := os.Stat(outputFile)
+	if err != nil {
+		return "", fmt.Errorf("error getting rendered file info: %v", err)
+	}
+	if fileInfo.Size() == 0 {
+		return "", fmt.Errorf("error: rendered file is empty")
 	}
 
 	return outputFile, nil
@@ -236,7 +356,7 @@ func renderScene(dir string, config Config) (string, error) {
 
 func HasMultiplePixelValues(videoPath string, config Config) (bool, error) {
 	// Create temporary directory for extracted frames
-	tempDir, err := os.MkdirTemp("", "video_frames_")
+	tempDir, err := os.MkdirTemp(config.TmpDir, "video_frames_")
 	if err != nil {
 		return false, fmt.Errorf("failed to create temp directory: %v", err)
 	}

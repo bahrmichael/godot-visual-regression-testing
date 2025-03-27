@@ -1,7 +1,9 @@
-# Godot Visual Regression Testing
+# Godot Visual Regression Testing (Godot VRT)
 
 Inspired by [Factorio's visual regression testing](https://www.youtube.com/watch?v=LXnyTZBmfXM), this is 
-an exploration of visual regression testing for Godot scenes.
+a test runner for visual regression testing and end-to-end testing with Godot scenes.
+
+You can start using it today!
 
 ## Concept
 
@@ -12,9 +14,10 @@ generated video that we know is correct).
 
 ### Prerequisites
 
+This currently doesn't work on headless machines (such as GitHub action runners) because we need to open a window to render the video.
+
 1. Install [Godot 4.4 Stable](https://godotengine.org/download)
-2. Install imagemagick (with homebrew on macOS: `brew install imagemagick`)
-3. Install ffmpeg (with homebrew on macOS: `brew install ffmpeg`)
+2. Install ffmpeg (if you have homebrew on macOS: `brew install ffmpeg`)
 
 ### Download the executable
 
@@ -24,14 +27,46 @@ You can also build it yourself by installing go 1.23 and running `go build .` in
 
 ### Create a baseline video
 
+Run this at the root of your Godot project:
+
 ```
-godot-vrt-mac . --godot path_to_godot_binary --project path_to_project --scene scene.tscn
+godot-vrt-mac --command baseline --godot path_to_godot_binary --scenes my_scene.tscn
+```
+
+This will evaluate the `--scenes` path (you can use a glob path) and generate a video file for each scene.
+
+```
+my_scene.tscn
+my_scene.avi
+```
+
+We recommend that you put the testing scenes into a separate folder to keep them neatly organized, and make it
+easier to pick the right scenes. For example, we might have a folder called `vrt`:
+
+```
+godot-vrt-mac --command baseline --godot path_to_godot_binary --scenes vrt/*.tscn
 ```
 
 ### Compare against a baseline video
 
+Once you have a baseline video, you can pass it to a test run.
+
 ```
-godot-vrt-mac . --godot path_to_godot_binary --project path_to_project --scene scene.tscn --baseline baseline.avi
+godot-vrt-mac --command test --godot path_to_godot_binary --scenes my_scene.tscn --baseline my_scene.avi
+```
+
+Again, with test scenes in a separate `vrt` folder it looks like this:
+
+```
+godot-vrt-mac --command test --godot path_to_godot_binary --scenes vrt/*.tscn --baseline vrt/*.avi
+```
+
+If any scene fails the test, it will exit with a non-zero exit code and produce a diff video next to the test scene and baseline video.
+
+```
+my_scene.tscn
+my_scene.avi
+comparison_my_scene.avi
 ```
 
 ## Example
@@ -44,29 +79,32 @@ make sure doesn't change accidentally.
 We first run this tool to generate a baseline video:
 
 ```shell
-./godot-vrt-mac --godot /Applications/Godot.app/Contents/MacOS/Godot --project /Users/me/Downloads/sprout-lands --scene scenes/test/test_scene_npc_cow.tscn
+./godot-vrt-mac --command baseline --godot /Applications/Godot.app/Contents/MacOS/Godot --scenes scenes/test/test_scene_npc_cow.tscn
 ```
  
-This results in a video file being generated:
+This results in a baseline video file being generated:
 
 ```text
-Rendered scene at baseline_1221468695.avi
+scenes/test/test_scene_npc_cow.tscn
+scenes/test/test_scene_npc_cow.avi
 ```
 
 We can then run the tool again with the baseline video, and it will compare the generated video to the baseline video:
 
 ```shell
-./godot-vrt-mac --godot /Applications/Godot.app/Contents/MacOS/Godot --project /Users/me/Downloads/sprout-lands --scene scenes/test/test_scene_npc_cow.tscn --baseline baseline_1221468695.avi
+./godot-vrt-mac --command test --godot /Applications/Godot.app/Contents/MacOS/Godot --scenes scenes/test/test_scene_npc_cow.tscn --baseline scenes/test/test_scene_npc_cow.avi
 ```
 
 ```text
 No difference between the baseline and the scene.
 ```
 
-If the generated video is different from the baseline video, the tool will output a message like this:
+If the generated video is different from the baseline video, the tool will output a diff video:
 
 ```text
-Diff rendered at diff_1913836305.avi
+scenes/test/test_scene_npc_cow.tscn
+scenes/test/test_scene_npc_cow.avi
+scenes/test/comparison_test_scene_npc_cow.avi
 ```
 
 You can then open the diff video to see what changed. It shows the two videos side by side, as well as a delta of the two.
@@ -89,7 +127,6 @@ You can then open the diff video to see what changed. It shows the two videos si
 
 ## Tools used
 
-- imagemagick
 - ffmpeg
 - go 1.23
 - godot 4.4.stable

@@ -27,7 +27,8 @@ func init() {
 	testCmd.Flags().StringVarP(&BaselineGlob, "baseline", "b", "", "glob path to the baseline .avi files (e.g. scenes-vrt/*.avi)")
 	testCmd.MarkFlagRequired("baseline")
 
-	testCmd.Flags().StringVarP(&ProjectPath, "project", "p", "", "path to the project root (only required if vrt is run from a different directory)")
+	testCmd.Flags().StringVarP(&ProjectPath, "project", "p", "", "path to the project root (only required if you run godot-vrt from a different directory)")
+	testCmd.Flags().IntVarP(&Frames, "frames", "f", 60, "number of frames to render")
 }
 
 var testCmd = &cobra.Command{
@@ -40,7 +41,7 @@ var testCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		hasFailures, err := testScenes(ScenesGlob, BaselineGlob, GodotExecutable, "vrt-results", 60, Verbose)
+		hasFailures, err := testScenes(ScenesGlob, BaselineGlob, GodotExecutable, "vrt-results", Frames, Verbose)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -54,7 +55,7 @@ var testCmd = &cobra.Command{
 	},
 }
 
-func testScenes(scenes, baseline, godotBinary, resultDir string, duration int, verbose bool) (bool, error) {
+func testScenes(scenes, baseline, godotBinary, resultDir string, frames int, verbose bool) (bool, error) {
 	// list all sceneFiles at config.Scenes (that's a glob)
 	sceneFiles, err := filepath.Glob(scenes)
 	if err != nil {
@@ -92,7 +93,9 @@ func testScenes(scenes, baseline, godotBinary, resultDir string, duration int, v
 	// for each file, render it
 	defaultArgs := []string{
 		"--quit-after",
-		strconv.Itoa(duration),
+		strconv.Itoa(frames),
+		//"--fixed-fps",
+		//strconv.Itoa(fps),
 	}
 
 	foundDiff := false
@@ -116,10 +119,10 @@ func testScenes(scenes, baseline, godotBinary, resultDir string, duration int, v
 		if err != nil {
 			return false, fmt.Errorf("error creating dir: %v", err)
 		}
-		h, err := lib.HasDiff(renderedScene, baseline, diffOutFile, verbose, duration)
+		h, err := lib.HasDiff(renderedScene, baseline, diffOutFile, verbose, frames)
 		if h {
 			foundDiff = true
-			d, err := lib.GenerateComparison(sceneName, renderedScene, baseline, resultDir)
+			d, err := lib.GenerateComparison(sceneName, renderedScene, baseline, resultDir, verbose)
 			if err != nil {
 				return false, fmt.Errorf("error generating comparison: %v", err)
 			}

@@ -113,12 +113,10 @@ func HasMultiplePixelValues(videoPath string, duration int, verbose bool) (bool,
 	return false, nil
 }
 
-func GenerateComparison(sceneName, rendered, baseline, resultDir string) (string, error) {
+func GenerateComparison(sceneName, rendered, baseline, resultDir string, verbose bool) (string, error) {
 	outFile := fmt.Sprintf("%s%s%s%s%s", resultDir, sceneName, "_", time.Now(), ".avi")
 	args := []string{
 		"-y",
-		"-loglevel",
-		"error",
 		"-i",
 		baseline,
 		"-i",
@@ -126,6 +124,10 @@ func GenerateComparison(sceneName, rendered, baseline, resultDir string) (string
 		"-filter_complex",
 		"[0:v][1:v]blend=all_mode=difference[diff];[0:v][1:v][diff]hstack=inputs=3",
 		outFile,
+	}
+
+	if !verbose {
+		args = slices.Insert(args, 0, "-loglevel", "error")
 	}
 
 	_, stderr, err := executeCommandUnsafe(

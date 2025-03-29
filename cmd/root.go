@@ -11,6 +11,7 @@ var GodotExecutable string
 var Verbose bool
 var ScenesGlob string
 var ProjectPath string
+var Frames int
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "verbose output")

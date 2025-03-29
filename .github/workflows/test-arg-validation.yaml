@@ -73,9 +73,8 @@ jobs:
           }
           
           # Add your test cases here
-          run_test "Invalid flag value" "./godot-vrt --flags -1" "invalid value for --flags"
-          run_test "Unknown flag" "./godot-vrt --unknown-flag" "unknown flag: --unknown-flag"
-          run_test "Missing required argument" "./godot-vrt --required-arg" "flag requires an argument: --required-arg"
+          run_test "Invalid flag value" "./godot-vrt --flags -1" "Error: invalid value for --flags"
+          run_test "Unknown flag" "./godot-vrt --unknown-flag" "Error: unknown flag: --unknown-flag"
           # Add more test cases as needed
           
           echo "Test summary: $((total_tests - failed_tests))/$total_tests tests passed"

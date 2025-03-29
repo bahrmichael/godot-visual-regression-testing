@@ -5,6 +5,8 @@ a test runner for visual regression testing and end-to-end testing with Godot sc
 
 You can start using it today!
 
+Run `godot-vrt --help` to see the available commands and their options.
+
 ## Concept
 
 The idea is that we can generate videos from Godot scenes, and then compare those videos to a baseline. A baseline is a
@@ -23,7 +25,7 @@ the computer find pixels that changed, and give us a video with all those change
 You need to run this on a computer that is equipped with a graphics card, and has Godot as well as ffmpeg installed. 
 
 Headless servers (such as GitHub action runners) are not supported because they lack the required hardware. If you're
-interested in paying someone to run the tests on GPU powered services, [please get in touch](https://forms.gle/VopXGutf3NSKrRXC8).
+interested in paying someone to run the tests on GPU powered servers and integrate them into your CI, [please get in touch](https://forms.gle/VopXGutf3NSKrRXC8).
 
 1. Install [Godot 4.4 Stable](https://godotengine.org/download)
 2. Install ffmpeg (if you have homebrew on macOS: `brew install ffmpeg`)

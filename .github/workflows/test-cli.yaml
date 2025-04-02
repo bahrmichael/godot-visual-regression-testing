@@ -28,8 +28,8 @@ jobs:
           - name: "Baseline with all args validates godot binary"
             args: "test --baseline folder1 --scenes folder2 --godot godot"
             expected_exit_code: 0
-            expected_stderr: "godot not set"
-            expected_stdout: "godot not set"
+            expected_stderr: ""
+            expected_stdout: "cannot find binary at godot"
           - name: "Test without args shows required args"
             args: "test"
             expected_exit_code: 0
@@ -48,8 +48,8 @@ jobs:
           - name: "Test with all args validates godot binary"
             args: "test --baseline folder1 --scenes folder2 --godot godot"
             expected_exit_code: 0
-            expected_stderr: "godot not set"
-            expected_stdout: "godot not set"
+            expected_stderr: ""
+            expected_stdout: "cannot find binary at godot"
 
     steps:
       - name: Checkout code

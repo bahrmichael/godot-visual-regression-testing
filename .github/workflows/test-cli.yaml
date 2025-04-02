@@ -56,8 +56,8 @@ jobs:
           exit_code=$?
           
           # Read the captured outputs
-          actual_stdout=$(cat "$stdout_file" | tr '\n"\[\]' ' ')
-          actual_stderr=$(cat "$stderr_file" | tr '\n"\[\]' ' ')
+          actual_stdout=$(cat "$stdout_file" | tr -d '\n"\[\]')
+          actual_stderr=$(cat "$stderr_file" | tr -d '\n"\[\]')
           
           # Store the results as step outputs
           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT

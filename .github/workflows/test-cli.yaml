@@ -84,7 +84,7 @@ jobs:
           actual_stdout="${{ steps.run_test.outputs.actual_stdout }}"
           expected_stdout="${{ matrix.test.expected_stdout }}"
           
-          if [[ "$actual_stdout" != *"$expected_stdout"* ]]; then
+          if ! echo "$actual_stdout" | grep -q -F "$expected_stdout"; then
             echo "::error::Expected stdout content not found for ${{ matrix.test.name }}"
             echo "Expected stdout to include: '$expected_stdout'"
             echo "Exitcode: ${{ steps.run_test.outputs.exit_code }}"
@@ -99,7 +99,7 @@ jobs:
           actual_stderr="${{ steps.run_test.outputs.actual_stderr }}"
           expected_stderr="${{ matrix.test.expected_stderr }}"
           
-          if [[ "$actual_stderr" != *"$expected_stderr"* ]]; then
+          if ! echo "$actual_stderr" | grep -q -F "$expected_stderr"; then
             echo "::error::Expected stderr content not found for ${{ matrix.test.name }}"
             echo "Expected stderr to include: '$expected_stderr'"
             echo "Exitcode: ${{ steps.run_test.outputs.exit_code }}"

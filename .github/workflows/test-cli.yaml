@@ -20,11 +20,36 @@ jobs:
             expected_exit_code: 0
             expected_stderr: "godot, scenes not set"
             expected_stdout: "godot, scenes not set"
+          - name: "Baseline with only scenes shows required args"
+            args: "test --scenes folder"
+            expected_exit_code: 0
+            expected_stderr: "godot not set"
+            expected_stdout: "godot not set"
+          - name: "Baseline with all args validates godot binary"
+            args: "test --baseline folder1 --scenes folder2 --godot godot"
+            expected_exit_code: 0
+            expected_stderr: "godot not set"
+            expected_stdout: "godot not set"
           - name: "Test without args shows required args"
             args: "test"
             expected_exit_code: 0
             expected_stderr: "baseline, godot, scenes not set"
             expected_stdout: "baseline, godot, scenes not set"
+          - name: "Test with only baseline shows required args"
+            args: "test --baseline folder"
+            expected_exit_code: 0
+            expected_stderr: "godot, scenes not set"
+            expected_stdout: "godot, scenes not set"
+          - name: "Test with only baseline and scenes shows required args"
+            args: "test --baseline folder1 --scenes folder2"
+            expected_exit_code: 0
+            expected_stderr: "godot not set"
+            expected_stdout: "godot not set"
+          - name: "Test with all args validates godot binary"
+            args: "test --baseline folder1 --scenes folder2 --godot godot"
+            expected_exit_code: 0
+            expected_stderr: "godot not set"
+            expected_stdout: "godot not set"
 
     steps:
       - name: Checkout code

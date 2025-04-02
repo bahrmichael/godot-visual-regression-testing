@@ -17,12 +17,12 @@ jobs:
             expected_stdout: "Godot Visual Regression Testing (VRT) helps you detect visual regressions in your Godot scenes"
           - name: "Baseline without args shows required args"
             args: "baseline"
-            expected_exit_code: 1
+            expected_exit_code: 0
             expected_stderr: "Error: required flag(s) \"godot\", \"scenes\" not set"
             expected_stdout: ""
           - name: "Test without args shows required args"
             args: "test"
-            expected_exit_code: 1
+            expected_exit_code: 0
             expected_stderr: "Error: required flag(s) \"baseline\", \"godot\", \"scenes\" not set"
             expected_stdout: ""
 

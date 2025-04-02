@@ -79,24 +79,34 @@ jobs:
           exit 1
 
       - name: Verify stdout includes expected content
-        if: matrix.test.expected_stdout != '' && !contains(steps.run_test.outputs.actual_stdout, matrix.test.expected_stdout)
+        if: matrix.test.expected_stdout != ''
         run: |
-          echo "::error::Expected stdout content not found for ${{ matrix.test.name }}"
-          echo "Expected stdout to include: '${{ matrix.test.expected_stdout }}'"
-          echo "Exitcode: ${{ steps.run_test.outputs.exit_code }}"
-          echo "Stdout: '${{ steps.run_test.outputs.actual_stdout }}'"
-          echo "Stderr: '${{ steps.run_test.outputs.actual_stderr }}'"
-          exit 1
+          actual_stdout="${{ steps.run_test.outputs.actual_stdout }}"
+          expected_stdout="${{ matrix.test.expected_stdout }}"
+          
+          if [[ "$actual_stdout" != *"$expected_stdout"* ]]; then
+            echo "::error::Expected stdout content not found for ${{ matrix.test.name }}"
+            echo "Expected stdout to include: '$expected_stdout'"
+            echo "Exitcode: ${{ steps.run_test.outputs.exit_code }}"
+            echo "Stdout: '${{ steps.run_test.outputs.actual_stdout }}'"
+            echo "Stderr: '${{ steps.run_test.outputs.actual_stderr }}'"
+            exit 1
+          fi
 
       - name: Verify stderr includes expected content
-        if: matrix.test.expected_stderr != '' && !contains(steps.run_test.outputs.actual_stderr, matrix.test.expected_stderr)
+        if: matrix.test.expected_stderr != ''
         run: |
-          echo "::error::Expected stderr content not found for ${{ matrix.test.name }}"
-          echo "Expected stderr to include: '${{ matrix.test.expected_stderr }}'"
-          echo "Exitcode: ${{ steps.run_test.outputs.exit_code }}"
-          echo "Stdout: '${{ steps.run_test.outputs.actual_stdout }}'"
-          echo "Stderr: '${{ steps.run_test.outputs.actual_stderr }}'"
-          exit 1
+          actual_stderr="${{ steps.run_test.outputs.actual_stderr }}"
+          expected_stderr="${{ matrix.test.expected_stderr }}"
+          
+          if [[ "$actual_stderr" != *"$expected_stderr"* ]]; then
+            echo "::error::Expected stderr content not found for ${{ matrix.test.name }}"
+            echo "Expected stderr to include: '$expected_stderr'"
+            echo "Exitcode: ${{ steps.run_test.outputs.exit_code }}"
+            echo "Stdout: '${{ steps.run_test.outputs.actual_stdout }}'"
+            echo "Stderr: '${{ steps.run_test.outputs.actual_stderr }}'"
+            exit 1
+          fi
 
       - name: Verify stdout is empty when expected to be empty
         if: matrix.test.expected_stdout == '' && steps.run_test.outputs.actual_stdout != ''

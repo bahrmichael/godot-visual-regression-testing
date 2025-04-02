@@ -14,7 +14,7 @@ jobs:
             args: ""
             expected_exit_code: 0
             expected_stderr: ""
-            expected_stdout: "Use \"godot-vrt [command] --help\" for more information about a command"
+            expected_stdout: "Use godot-vrt command --help for more information about a command"
           - name: "Baseline without args shows required args"
             args: "baseline"
             expected_exit_code: 0
@@ -56,8 +56,8 @@ jobs:
           exit_code=$?
           
           # Read the captured outputs
-          actual_stdout=$(cat "$stdout_file" | tr '\n"' ' ')
-          actual_stderr=$(cat "$stderr_file" | tr '\n"' ' ')
+          actual_stdout=$(cat "$stdout_file" | tr '\n"\[\]' ' ')
+          actual_stderr=$(cat "$stderr_file" | tr '\n"\[\]' ' ')
           
           # Store the results as step outputs
           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT

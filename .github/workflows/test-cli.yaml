@@ -1,0 +1,107 @@
+name: Executable Test Matrix
+
+on:
+  push:
+
+jobs:
+  test-executables:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        test:
+          - name: "Shows help when no command is used"
+            args: ""
+            expected_exit_code: 0
+            expected_stderr: ""
+            expected_stdout: "Godot Visual Regression Testing (VRT) helps you detect visual regressions in your Godot scenes"
+          - name: "Baseline without args shows required args"
+            args: "baseline"
+            expected_exit_code: 1
+            expected_stderr: "Error: required flag(s) \"godot\", \"scenes\" not set"
+            expected_stdout: ""
+          - name: "Test without args shows required args"
+            args: "test"
+            expected_exit_code: 1
+            expected_stderr: "Error: required flag(s) \"baseline\", \"godot\", \"scenes\" not set"
+            expected_stdout: ""
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23'
+          check-latest: true
+
+      - name: Build for Linux
+        run: |
+          GOOS=linux GOARCH=amd64 go build -o executable .
+
+      - name: Make executable executable
+        run: |
+          chmod +x executable
+
+      - name: Run test - ${{ matrix.test.name }}
+        id: run_test
+        run: |
+          # Create temporary files for capturing output
+          stdout_file=$(mktemp)
+          stderr_file=$(mktemp)
+          
+          # Run the executable with arguments and capture exit code, stdout, and stderr
+          ./executable ${{ matrix.test.args }} > "$stdout_file" 2> "$stderr_file" || true
+          exit_code=$?
+          
+          # Read the captured outputs
+          actual_stdout=$(cat "$stdout_file")
+          actual_stderr=$(cat "$stderr_file")
+          
+          # Store the results as step outputs
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+          echo "actual_stdout<<EOF" >> $GITHUB_OUTPUT
+          echo "$actual_stdout" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "actual_stderr<<EOF" >> $GITHUB_OUTPUT
+          echo "$actual_stderr" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Verify exit code
+        if: steps.run_test.outputs.exit_code != matrix.test.expected_exit_code
+        run: |
+          echo "::error::Exit code mismatch for ${{ matrix.test.name }}"
+          echo "Expected: ${{ matrix.test.expected_exit_code }}"
+          echo "Actual: ${{ steps.run_test.outputs.exit_code }}"
+          exit 1
+
+      - name: Verify stdout includes expected content
+        if: matrix.test.expected_stdout != '' && !contains(steps.run_test.outputs.actual_stdout, matrix.test.expected_stdout)
+        run: |
+          echo "::error::Expected stdout content not found for ${{ matrix.test.name }}"
+          echo "Expected to include: '${{ matrix.test.expected_stdout }}'"
+          echo "Actual: '${{ steps.run_test.outputs.actual_stdout }}'"
+          exit 1
+
+      - name: Verify stderr includes expected content
+        if: matrix.test.expected_stderr != '' && !contains(steps.run_test.outputs.actual_stderr, matrix.test.expected_stderr)
+        run: |
+          echo "::error::Expected stderr content not found for ${{ matrix.test.name }}"
+          echo "Expected to include: '${{ matrix.test.expected_stderr }}'"
+          echo "Actual: '${{ steps.run_test.outputs.actual_stderr }}'"
+          exit 1
+
+      - name: Verify stdout is empty when expected to be empty
+        if: matrix.test.expected_stdout == '' && steps.run_test.outputs.actual_stdout != ''
+        run: |
+          echo "::error::Expected empty stdout but got content for ${{ matrix.test.name }}"
+          echo "Actual: '${{ steps.run_test.outputs.actual_stdout }}'"
+          exit 1
+
+      - name: Verify stderr is empty when expected to be empty
+        if: matrix.test.expected_stderr == '' && steps.run_test.outputs.actual_stderr != ''
+        run: |
+          echo "::error::Expected empty stderr but got content for ${{ matrix.test.name }}"
+          echo "Actual: '${{ steps.run_test.outputs.actual_stderr }}'"
+          exit 1

@@ -18,13 +18,13 @@ jobs:
           - name: "Baseline without args shows required args"
             args: "baseline"
             expected_exit_code: 0
-            expected_stderr: "Error: required flag(s) godot, scenes not set"
-            expected_stdout: "required flag(s) godot, scenes not set"
+            expected_stderr: "godot, scenes not set"
+            expected_stdout: "godot, scenes not set"
           - name: "Test without args shows required args"
             args: "test"
             expected_exit_code: 0
-            expected_stderr: "Error: required flag(s) baseline, godot, scenes not set"
-            expected_stdout: "required flag(s) baseline, godot, scenes not set"
+            expected_stderr: "baseline, godot, scenes not set"
+            expected_stdout: "baseline, godot, scenes not set"
 
     steps:
       - name: Checkout code

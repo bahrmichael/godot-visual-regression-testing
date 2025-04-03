@@ -14,6 +14,7 @@ import (
 )
 
 var BaselineGlob string
+var RetainTestRenders bool
 
 func init() {
 	rootCmd.AddCommand(testCmd)
@@ -29,6 +30,7 @@ func init() {
 
 	testCmd.Flags().StringVarP(&ProjectPath, "project", "p", "", "path to the project root (only required if you run godot-vrt from a different directory)")
 	testCmd.Flags().IntVarP(&Frames, "frames", "f", 60, "number of frames to render")
+	testCmd.Flags().BoolVar(&RetainTestRenders, "retain-assets", false, "will keep the test videos around if set to true (useful for debugging why a test didn't fail)")
 }
 
 var testCmd = &cobra.Command{
@@ -41,7 +43,7 @@ var testCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		hasFailures, err := testScenes(ScenesGlob, BaselineGlob, GodotExecutable, "vrt-results", Frames, Verbose)
+		hasFailures, err := testScenes(ScenesGlob, BaselineGlob, GodotExecutable, "vrt-results", Frames, Verbose, RetainTestRenders)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -55,7 +57,7 @@ var testCmd = &cobra.Command{
 	},
 }
 
-func testScenes(scenes, baseline, godotBinary, resultDir string, frames int, verbose bool) (bool, error) {
+func testScenes(scenes, baseline, godotBinary, resultDir string, frames int, verbose, retainTestRenders bool) (bool, error) {
 	// list all sceneFiles at config.Scenes (that's a glob)
 	sceneFiles, err := filepath.Glob(scenes)
 	if err != nil {
@@ -86,9 +88,9 @@ func testScenes(scenes, baseline, godotBinary, resultDir string, frames int, ver
 	if !strings.HasSuffix(renderDir, "/") {
 		renderDir = renderDir + "/"
 	}
-	//if !config.RetainRenderDir {
-	defer os.RemoveAll(renderDir)
-	//}
+	if !retainTestRenders {
+		defer os.RemoveAll(renderDir)
+	}
 
 	// for each file, render it
 	defaultArgs := []string{

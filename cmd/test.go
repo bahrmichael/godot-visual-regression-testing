@@ -81,7 +81,7 @@ func testScenes(scenes, baseline, godotBinary, resultDir string, frames int, ver
 	}
 
 	//renderDir, err := os.MkdirTemp(config.TmpDir, "renders_")
-	renderDir, err := os.MkdirTemp("", ".vrt")
+	renderDir, err := os.MkdirTemp(".", ".vrt_")
 	if err != nil {
 		return false, fmt.Errorf("error creating temp dir: %v", err)
 	}

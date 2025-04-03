@@ -121,8 +121,11 @@ func testScenes(scenes, baseline, godotBinary, resultDir string, frames int, ver
 		if err != nil {
 			return false, fmt.Errorf("error creating dir: %v", err)
 		}
-		h, err := lib.HasDiff(renderedScene, baseline, diffOutFile, verbose, frames)
-		if h {
+		hasDiff, err := lib.HasDiff(renderedScene, baseline, diffOutFile, verbose, frames)
+		if err != nil {
+			return false, fmt.Errorf("error generating diff: %v", err)
+		}
+		if hasDiff {
 			foundDiff = true
 			d, err := lib.GenerateComparison(sceneName, renderedScene, baseline, resultDir, verbose)
 			if err != nil {

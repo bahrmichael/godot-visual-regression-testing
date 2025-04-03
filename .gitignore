@@ -2,3 +2,4 @@
 *.iml
 
 *.avi
+!lib/test_assets/*.avi

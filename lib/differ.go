@@ -44,7 +44,7 @@ func HasDiff(renderedVideo, baselineVideo, outFile string, verbose bool, duratio
 func HasMultiplePixelValues(videoPath string, duration int, verbose bool) (bool, error) {
 	// Create temporary directory for extracted frames
 	//tempDir, err := os.MkdirTemp(config.TmpDir, "video_frames_")
-	tempDir, err := os.MkdirTemp(".vrt", "video_frames_")
+	tempDir, err := os.MkdirTemp("", ".vrt_frames")
 	if err != nil {
 		return false, fmt.Errorf("failed to create temp directory: %v", err)
 	}

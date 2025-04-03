@@ -42,7 +42,7 @@ func VerifyBinary(binaryPath string) error {
 	return nil
 }
 
-var supportedVersions = []string{"4.4.stable"}
+var supportedVersions = []string{"4.4.1", "4.4", "4.3", "4.2.2", "4.1.4"}
 
 func VerifyGodotInstallation(godotPath string) error {
 	if err := VerifyBinary(godotPath); err != nil {
@@ -57,13 +57,13 @@ func VerifyGodotInstallation(godotPath string) error {
 
 	supportedVersion := false
 	for _, v := range supportedVersions {
-		if strings.HasPrefix(versionResult, v) {
+		if strings.HasPrefix(versionResult, v) && strings.Contains(versionResult, "stable") {
 			supportedVersion = true
 			break
 		}
 	}
 	if !supportedVersion {
-		return fmt.Errorf("godot version is currently not supported. Please install one of %s and try again: %v %s", supportedVersions, err, stderr)
+		return fmt.Errorf("godot version is currently not supported. Please install one of the stable versions %s and try again: %v %s", supportedVersions, err, stderr)
 	}
 	return nil
 }

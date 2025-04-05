@@ -37,6 +37,8 @@ var testCmd = &cobra.Command{
 	Short: "Runs visual regression testing by rendering scenes and comparing them to their baselines",
 	//Long:  `Test long description`,
 	Run: func(cmd *cobra.Command, args []string) {
+		ProjectPath = lib.WithFolderSuffix(ProjectPath)
+
 		if err := lib.Validate(GodotExecutable, ProjectPath); err != nil {
 			fmt.Println(err)
 			if !OmitExitCode {

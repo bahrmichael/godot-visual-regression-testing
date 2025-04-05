@@ -15,7 +15,7 @@ func Validate(godotPath, projectPath string) error {
 		return err
 	}
 
-	if err := VerifyFileExists(projectPath + "/project.godot"); err != nil {
+	if err := VerifyFileExists(WithFolderSuffix(projectPath) + "project.godot"); err != nil {
 		return err
 	}
 	return nil

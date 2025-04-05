@@ -40,6 +40,7 @@ var baselineCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		ProjectPath = lib.WithFolderSuffix(ProjectPath)
 
 		if err := lib.Validate(GodotExecutable, ProjectPath); err != nil {
 			fmt.Println(err)

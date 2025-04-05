@@ -14,6 +14,13 @@ import (
 func TestBaseline(t *testing.T) {
 
 	godotExecutable := "/Applications/Godot.app/Contents/MacOS/Godot"
+	env := os.Environ()
+	for _, e := range env {
+		if strings.HasPrefix("GODOT_EXECUTABLE", e) {
+			godotExecutable = strings.Split(e, "=")[1]
+		}
+	}
+
 	projectPath := "test-project/"
 	if err := lib.Validate(godotExecutable, projectPath); err != nil {
 		t.Fatal("Test prerequisites not met", err)

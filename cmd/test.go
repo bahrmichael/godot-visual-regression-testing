@@ -67,11 +67,17 @@ func testScenes() (bool, error) {
 	// list all sceneFiles at config.Scenes (that's a glob)
 	sceneFiles, err := filepath.Glob(ProjectPath + ScenesGlob)
 	if err != nil {
-		return false, fmt.Errorf("error listing sceneFiles: %v", err)
+		return false, fmt.Errorf("failed to list files at %s: %v", ProjectPath+ScenesGlob, err)
+	}
+	if len(sceneFiles) == 0 {
+		return false, fmt.Errorf("search for files at %s yielded 0 results", ProjectPath+ScenesGlob)
 	}
 	baselineFiles, err := filepath.Glob(ProjectPath + BaselineGlob)
 	if err != nil {
-		return false, fmt.Errorf("error listing sceneFiles: %v", err)
+		return false, fmt.Errorf("failed to list files at %s: %v", ProjectPath+BaselineGlob, err)
+	}
+	if len(sceneFiles) == 0 {
+		return false, fmt.Errorf("search for files at %s yielded 0 results", ProjectPath+BaselineGlob)
 	}
 
 	tmpDir, cleanupTmpDir := lib.InitTmpDir()

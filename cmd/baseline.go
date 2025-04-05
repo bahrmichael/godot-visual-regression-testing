@@ -62,10 +62,10 @@ func renderScenes() error {
 	// list all sceneFiles at config.Scenes (that's a glob)
 	sceneFiles, err := filepath.Glob(ProjectPath + ScenesGlob)
 	if err != nil {
-		return fmt.Errorf("error listing sceneFiles: %v", err)
+		return fmt.Errorf("failed to list files at %s: %v", ProjectPath+ScenesGlob, err)
 	}
 	if len(sceneFiles) == 0 {
-		return fmt.Errorf("no sceneFiles found")
+		return fmt.Errorf("search for files at %s yielded 0 results", ProjectPath+ScenesGlob)
 	}
 
 	for _, file := range sceneFiles {

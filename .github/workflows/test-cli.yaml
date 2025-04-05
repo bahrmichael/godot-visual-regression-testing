@@ -1,55 +1,18 @@
-name: Executable Test Matrix
+name: Unit Tests
 
 on:
   push:
 
 jobs:
-  test-executables:
+  tests:
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
         test:
-          - name: "Shows help when no command is used"
-            args: ""
-            expected_exit_code: 0
-            expected_stderr: ""
-            expected_stdout: "Use godot-vrt command --help for more information about a command"
-          - name: "Baseline without args shows required args"
-            args: "baseline"
-            expected_exit_code: 0
-            expected_stderr: "godot, scenes not set"
-            expected_stdout: "godot, scenes not set"
-          - name: "Baseline with only scenes shows required args"
-            args: "test --scenes folder"
-            expected_exit_code: 0
-            expected_stderr: "godot not set"
-            expected_stdout: "godot not set"
-          - name: "Baseline with all args validates godot binary"
-            args: "test --baseline folder1 --scenes folder2 --godot godot"
-            expected_exit_code: 0
-            expected_stderr: ""
-            expected_stdout: "cannot find binary at godot"
-          - name: "Test without args shows required args"
-            args: "test"
-            expected_exit_code: 0
-            expected_stderr: "baseline, godot, scenes not set"
-            expected_stdout: "baseline, godot, scenes not set"
-          - name: "Test with only baseline shows required args"
-            args: "test --baseline folder"
-            expected_exit_code: 0
-            expected_stderr: "godot, scenes not set"
-            expected_stdout: "godot, scenes not set"
-          - name: "Test with only baseline and scenes shows required args"
-            args: "test --baseline folder1 --scenes folder2"
-            expected_exit_code: 0
-            expected_stderr: "godot not set"
-            expected_stdout: "godot not set"
-          - name: "Test with all args validates godot binary"
-            args: "test --baseline folder1 --scenes folder2 --godot godot"
-            expected_exit_code: 0
-            expected_stderr: ""
-            expected_stdout: "cannot find binary at godot"
+          - name: "Unit tests (lib)"
+            command: go test ./lib/...
+          # E2E tests don't work on github actions
 
     steps:
       - name: Checkout code
@@ -61,92 +24,5 @@ jobs:
           go-version: '1.23'
           check-latest: true
 
-      - name: Build for Linux
-        run: |
-          GOOS=linux GOARCH=amd64 go build -o executable .
-
-      - name: Make executable executable
-        run: |
-          chmod +x executable
-
-      - name: Run test - ${{ matrix.test.name }}
-        id: run_test
-        run: |
-          # Create temporary files for capturing output
-          stdout_file=$(mktemp)
-          stderr_file=$(mktemp)
-          
-          # Run the executable with arguments and capture exit code, stdout, and stderr
-          ./executable ${{ matrix.test.args }} > "$stdout_file" 2> "$stderr_file" || true
-          exit_code=$?
-          
-          # Read the captured outputs
-          actual_stdout=$(cat "$stdout_file" | tr -d '\n"\[\]')
-          actual_stderr=$(cat "$stderr_file" | tr -d '\n"\[\]')
-          
-          # Store the results as step outputs
-          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
-          echo "actual_stdout<<EOF" >> $GITHUB_OUTPUT
-          echo "$actual_stdout" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          echo "actual_stderr<<EOF" >> $GITHUB_OUTPUT
-          echo "$actual_stderr" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Verify exit code
-        if: steps.run_test.outputs.exit_code != matrix.test.expected_exit_code
-        run: |
-          echo "::error::Exit code mismatch for ${{ matrix.test.name }}"
-          echo "Expected: ${{ matrix.test.expected_exit_code }}"
-          echo "Exitcode: ${{ steps.run_test.outputs.exit_code }}"
-          echo "Stdout: '${{ steps.run_test.outputs.actual_stdout }}'"
-          echo "Stderr: '${{ steps.run_test.outputs.actual_stderr }}'"
-          exit 1
-
-      - name: Verify stdout includes expected content
-        if: matrix.test.expected_stdout != ''
-        run: |
-          actual_stdout="${{ steps.run_test.outputs.actual_stdout }}"
-          expected_stdout="${{ matrix.test.expected_stdout }}"
-          
-          if ! echo "$actual_stdout" | grep -q -F "$expected_stdout"; then
-            echo "::error::Expected stdout content not found for ${{ matrix.test.name }}"
-            echo "Expected stdout to include: '$expected_stdout'"
-            echo "Exitcode: ${{ steps.run_test.outputs.exit_code }}"
-            echo "Stdout: '${{ steps.run_test.outputs.actual_stdout }}'"
-            echo "Stderr: '${{ steps.run_test.outputs.actual_stderr }}'"
-            exit 1
-          fi
-
-      - name: Verify stderr includes expected content
-        if: matrix.test.expected_stderr != ''
-        run: |
-          actual_stderr="${{ steps.run_test.outputs.actual_stderr }}"
-          expected_stderr="${{ matrix.test.expected_stderr }}"
-          
-          if ! echo "$actual_stderr" | grep -q -F "$expected_stderr"; then
-            echo "::error::Expected stderr content not found for ${{ matrix.test.name }}"
-            echo "Expected stderr to include: '$expected_stderr'"
-            echo "Exitcode: ${{ steps.run_test.outputs.exit_code }}"
-            echo "Stdout: '${{ steps.run_test.outputs.actual_stdout }}'"
-            echo "Stderr: '${{ steps.run_test.outputs.actual_stderr }}'"
-            exit 1
-          fi
-
-      - name: Verify stdout is empty when expected to be empty
-        if: matrix.test.expected_stdout == '' && steps.run_test.outputs.actual_stdout != ''
-        run: |
-          echo "::error::Expected empty stdout but got content for ${{ matrix.test.name }}"
-          echo "Exitcode: ${{ steps.run_test.outputs.exit_code }}"
-          echo "Stdout: '${{ steps.run_test.outputs.actual_stdout }}'"
-          echo "Stderr: '${{ steps.run_test.outputs.actual_stderr }}'"
-          exit 1
-
-      - name: Verify stderr is empty when expected to be empty
-        if: matrix.test.expected_stderr == '' && steps.run_test.outputs.actual_stderr != ''
-        run: |
-          echo "::error::Expected empty stderr but got content for ${{ matrix.test.name }}"
-          echo "Exitcode: ${{ steps.run_test.outputs.exit_code }}"
-          echo "Stdout: '${{ steps.run_test.outputs.actual_stdout }}'"
-          echo "Stderr: '${{ steps.run_test.outputs.actual_stderr }}'"
-          exit 1
+      - name: Run the test
+        run: ${{ matrix.test.command }}

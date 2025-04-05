@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 
 	"godot-vrt/lib"
@@ -14,23 +13,23 @@ import (
 )
 
 var BaselineGlob string
-var RetainTestRenders bool
+var RetainAssets bool
 
 func init() {
-	rootCmd.AddCommand(testCmd)
+	RootCmd.AddCommand(testCmd)
 
 	testCmd.Flags().StringVarP(&GodotExecutable, "godot", "g", "", "path to the godot executable (e.g. /usr/local/bin/godot)")
 	testCmd.MarkFlagRequired("godot")
 
-	testCmd.Flags().StringVarP(&ScenesGlob, "scenes", "s", "", "glob path to the .tscn files (e.g. scenes-vrt/*.tscn)")
+	testCmd.Flags().StringVarP(&ScenesGlob, "scenes", "s", "", "glob path to the .tscn files, relative from the godot project root (e.g. scenes-vrt/*.tscn)")
 	testCmd.MarkFlagRequired("scenes")
 
-	testCmd.Flags().StringVarP(&BaselineGlob, "baseline", "b", "", "glob path to the baseline .avi files (e.g. scenes-vrt/*.avi)")
+	testCmd.Flags().StringVarP(&BaselineGlob, "baseline", "b", "", "glob path to the baseline .avi files, relative from the godot project root (e.g. scenes-vrt/*.avi)")
 	testCmd.MarkFlagRequired("baseline")
 
-	testCmd.Flags().StringVarP(&ProjectPath, "project", "p", "", "path to the project root (only required if you run godot-vrt from a different directory)")
+	testCmd.Flags().StringVarP(&ProjectPath, "project", "p", ".", "path to the project root (only required if you run godot-vrt from a different directory)")
 	testCmd.Flags().IntVarP(&Frames, "frames", "f", 60, "number of frames to render")
-	testCmd.Flags().BoolVar(&RetainTestRenders, "retain-assets", false, "will keep the test videos around if set to true (useful for debugging why a test didn't fail)")
+	testCmd.Flags().BoolVar(&RetainAssets, "retain-assets", false, "will keep the test videos around if set to true (useful for debugging why a test didn't fail)")
 }
 
 var testCmd = &cobra.Command{
@@ -40,32 +39,44 @@ var testCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		if err := lib.Validate(GodotExecutable, ProjectPath); err != nil {
 			fmt.Println(err)
-			os.Exit(1)
+			if !OmitExitCode {
+				os.Exit(1)
+			}
 		}
 
-		hasFailures, err := testScenes(ScenesGlob, BaselineGlob, GodotExecutable, "vrt-results", Frames, Verbose, RetainTestRenders)
+		hasFailures, err := testScenes()
 		if err != nil {
 			fmt.Println(err)
-			os.Exit(1)
+			if !OmitExitCode {
+				os.Exit(1)
+			}
 		}
 		if hasFailures {
 			fmt.Println("❌ One or more tests failed")
 			// todo: document error codes (available range is 1-127: we use 1 for generic errors, and 50 for test failures)
-			os.Exit(50)
+			if !OmitExitCode {
+				os.Exit(50)
+			}
+			return
 		}
 		fmt.Println("✅ All tests passed")
 	},
 }
 
-func testScenes(scenes, baseline, godotBinary, resultDir string, frames int, verbose, retainTestRenders bool) (bool, error) {
+func testScenes() (bool, error) {
 	// list all sceneFiles at config.Scenes (that's a glob)
-	sceneFiles, err := filepath.Glob(scenes)
+	sceneFiles, err := filepath.Glob(ProjectPath + ScenesGlob)
 	if err != nil {
 		return false, fmt.Errorf("error listing sceneFiles: %v", err)
 	}
-	baselineFiles, err := filepath.Glob(baseline)
+	baselineFiles, err := filepath.Glob(ProjectPath + BaselineGlob)
 	if err != nil {
 		return false, fmt.Errorf("error listing sceneFiles: %v", err)
+	}
+
+	tmpDir, cleanupTmpDir := lib.InitTmpDir()
+	if !RetainAssets {
+		defer cleanupTmpDir()
 	}
 
 	// there must be a baseline for each scene if we're in test mode
@@ -80,54 +91,36 @@ func testScenes(scenes, baseline, godotBinary, resultDir string, frames int, ver
 		return false, fmt.Errorf("missing baselines for scenes: %v", missingBaselines)
 	}
 
-	//renderDir, err := os.MkdirTemp(config.TmpDir, "renders_")
-	renderDir, err := os.MkdirTemp(".", ".vrt_")
-	if err != nil {
-		return false, fmt.Errorf("error creating temp dir: %v", err)
-	}
-	if !strings.HasSuffix(renderDir, "/") {
-		renderDir = renderDir + "/"
-	}
-	if !retainTestRenders {
-		defer os.RemoveAll(renderDir)
-	}
-
-	// for each file, render it
-	defaultArgs := []string{
-		"--quit-after",
-		strconv.Itoa(frames),
-		//"--fixed-fps",
-		//strconv.Itoa(fps),
-	}
-
 	foundDiff := false
 
 	for _, file := range sceneFiles {
 		sceneName := strings.Replace(file, ".tscn", "", 1)
 
-		actualPathFile := fmt.Sprintf("%s%s%s", renderDir, sceneName, "_actual.avi")
-		err := os.MkdirAll(filepath.Dir(actualPathFile), 0755)
-		if err != nil {
-			return false, fmt.Errorf("error creating dir: %v", err)
-		}
-		renderedScene, err := lib.RenderScene(file, actualPathFile, defaultArgs, verbose, godotBinary)
+		actualPathFile := fmt.Sprintf("%s%s%s", tmpDir, sceneName, "_actual.avi")
+		renderedScene, err := lib.RenderScene(lib.RenderSceneArgs{
+			SceneFileFromProjectRoot: strings.Replace(file, lib.WithFolderSuffix(ProjectPath), "", 1),
+			OutputFile:               actualPathFile,
+			GodotBinary:              GodotExecutable,
+			Verbose:                  Verbose,
+			Frames:                   Frames,
+			ProjectPath:              ProjectPath,
+		})
 		if err != nil {
 			return false, fmt.Errorf("error rendering file: %v", err)
 		}
 
-		baseline := fmt.Sprintf("%s%s", sceneName, ".avi")
-		diffOutFile := fmt.Sprintf("%s%s%s", renderDir, sceneName, "_diff.avi")
-		err = os.MkdirAll(filepath.Dir(diffOutFile), 0755)
+		baseline, err := filepath.Abs(fmt.Sprintf("%s%s", sceneName, ".avi"))
 		if err != nil {
-			return false, fmt.Errorf("error creating dir: %v", err)
+			return false, fmt.Errorf("error getting absolute path: %v", err)
 		}
-		hasDiff, err := lib.HasDiff(renderedScene, baseline, diffOutFile, verbose, frames)
+		diffOutFile := fmt.Sprintf("%s%s%s", tmpDir, sceneName, "_diff.avi")
+		hasDiff, err := lib.HasDiff(renderedScene, baseline, diffOutFile, Verbose, Frames)
 		if err != nil {
 			return false, fmt.Errorf("error generating diff: %v", err)
 		}
 		if hasDiff {
 			foundDiff = true
-			d, err := lib.GenerateComparison(sceneName, renderedScene, baseline, resultDir, verbose)
+			d, err := lib.GenerateComparison(sceneName, renderedScene, baseline, "vrt-results/", Verbose)
 			if err != nil {
 				return false, fmt.Errorf("error generating comparison: %v", err)
 			}

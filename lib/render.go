@@ -3,23 +3,43 @@ package lib
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
+	"strconv"
 )
 
-func RenderScene(scene, outputFile string, args []string, verbose bool, godotBinary string) (string, error) {
-	args = append(args, "--write-movie", outputFile, scene)
-	if verbose {
-		args = slices.Insert(args, 0, "--verbose")
+type RenderSceneArgs struct {
+	SceneFileFromProjectRoot string
+	OutputFile               string
+	GodotBinary              string
+	Verbose                  bool
+	Frames                   int
+	ProjectPath              string
+}
+
+func RenderScene(args RenderSceneArgs) (string, error) {
+	if err := os.MkdirAll(filepath.Dir(args.OutputFile), 0755); err != nil {
+		return "", fmt.Errorf("error creating dir: %v", err)
 	}
-	stdout, stderr, err := executeCommandUnsafe(godotBinary, args)
-	if verbose {
+
+	a := []string{
+		"--quit-after",
+		strconv.Itoa(args.Frames),
+		"--write-movie", args.OutputFile,
+		args.SceneFileFromProjectRoot,
+	}
+	if args.Verbose {
+		a = slices.Insert(a, 0, "--verbose")
+	}
+	stdout, stderr, err := executeCommandUnsafe(&args.ProjectPath, args.GodotBinary, a)
+	if args.Verbose {
 		fmt.Println(stdout)
 		fmt.Println(stderr)
 	}
 	if err != nil {
 		return "", fmt.Errorf("error rendering scene: %v %s", err, stderr)
 	}
-	fileInfo, err := os.Stat(outputFile)
+	fileInfo, err := os.Stat(args.OutputFile)
 	if err != nil {
 		return "", fmt.Errorf("error getting rendered file info: %v", err)
 	}
@@ -27,5 +47,5 @@ func RenderScene(scene, outputFile string, args []string, verbose bool, godotBin
 		return "", fmt.Errorf("error: rendered file is empty")
 	}
 
-	return outputFile, nil
+	return args.OutputFile, nil
 }

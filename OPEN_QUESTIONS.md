@@ -12,3 +12,7 @@
 ### Behavior of libraries
 
 - Does ffmpeg always generate a green screen when there is no difference? Do the pixel values ever change?
+
+### Multiplayer
+
+- Can we support it? How do we deal with lag?

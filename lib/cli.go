@@ -6,9 +6,12 @@ import (
 	"os/exec"
 )
 
-func executeCommandUnsafe(program string, args []string) (string, string, error) {
+func executeCommandUnsafe(dir *string, program string, args []string) (string, string, error) {
 
 	cmd := exec.Command(program, args...)
+	if dir != nil {
+		cmd.Dir = *dir
+	}
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

@@ -12,12 +12,14 @@ var Verbose bool
 var ScenesGlob string
 var ProjectPath string
 var Frames int
+var OmitExitCode bool
 
 func init() {
-	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "verbose output")
+	RootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "verbose output")
+	RootCmd.PersistentFlags().BoolVar(&OmitExitCode, "omit-exit-code", false, "always exit with 0 despite failures")
 }
 
-var rootCmd = &cobra.Command{
+var RootCmd = &cobra.Command{
 	Use:   "godot-vrt",
 	Short: "Godot Visual Regression Testing (VRT) helps you detect visual regressions in your Godot scenes",
 	//Long:  `Long description`,
@@ -27,8 +29,10 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
+	if err := RootCmd.Execute(); err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		if !OmitExitCode {
+			os.Exit(1)
+		}
 	}
 }

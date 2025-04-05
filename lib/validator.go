@@ -15,13 +15,7 @@ func Validate(godotPath, projectPath string) error {
 		return err
 	}
 
-	if projectPath != "" {
-		err := os.Chdir(projectPath)
-		if err != nil {
-			return err
-		}
-	}
-	if err := VerifyFileExists("project.godot"); err != nil {
+	if err := VerifyFileExists(projectPath + "/project.godot"); err != nil {
 		return err
 	}
 	return nil
@@ -49,7 +43,7 @@ func VerifyGodotInstallation(godotPath string) error {
 		return err
 	}
 
-	versionResult, stderr, err := executeCommandUnsafe(godotPath, []string{"--version", "--headless"})
+	versionResult, stderr, err := executeCommandUnsafe(nil, godotPath, []string{"--version", "--headless"})
 	if err != nil {
 		return fmt.Errorf("error executing Godot: %v %s", err, stderr)
 	}

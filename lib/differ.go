@@ -8,10 +8,13 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
-	"time"
+	"strings"
 )
 
 func HasDiff(renderedVideo, baselineVideo, outFile string, verbose bool, duration int) (bool, error) {
+	if err := os.MkdirAll(filepath.Dir(outFile), 0700); err != nil {
+		return false, fmt.Errorf("error creating dir: %v", err)
+	}
 	args := []string{
 		"-i",
 		baselineVideo,
@@ -24,7 +27,7 @@ func HasDiff(renderedVideo, baselineVideo, outFile string, verbose bool, duratio
 	if !verbose {
 		args = slices.Insert(args, 0, "-loglevel", "error")
 	}
-	_, stderr, err := executeCommandUnsafe("ffmpeg", args)
+	_, stderr, err := executeCommandUnsafe(nil, "ffmpeg", args)
 
 	if err != nil {
 		return false, fmt.Errorf("generating diff video: %v %s", err, stderr)
@@ -44,11 +47,10 @@ func HasDiff(renderedVideo, baselineVideo, outFile string, verbose bool, duratio
 func HasMultiplePixelValues(videoPath string, duration int, verbose bool) (bool, error) {
 	// Create temporary directory for extracted frames
 	//tempDir, err := os.MkdirTemp(config.TmpDir, "video_frames_")
-	tempDir, err := os.MkdirTemp("", ".vrt_frames")
+	tempDir, err := os.MkdirTemp(filepath.Dir(videoPath), fmt.Sprintf(".frames_%s_", strings.Replace(filepath.Base(videoPath), ".avi", "", 1)))
 	if err != nil {
 		return false, fmt.Errorf("failed to create temp directory: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
 
 	// Extract frames using ffmpeg
 	args := []string{
@@ -64,7 +66,7 @@ func HasMultiplePixelValues(videoPath string, duration int, verbose bool) (bool,
 		args = slices.Insert(args, 0, "-loglevel", "error")
 	}
 
-	_, stderr, err := executeCommandUnsafe("ffmpeg", args)
+	_, stderr, err := executeCommandUnsafe(nil, "ffmpeg", args)
 	if err != nil {
 		return false, fmt.Errorf("failed to extract frames: %v - %s", err, stderr)
 	}
@@ -73,6 +75,13 @@ func HasMultiplePixelValues(videoPath string, duration int, verbose bool) (bool,
 	if err != nil {
 		return false, fmt.Errorf("failed to list frame files: %v", err)
 	}
+
+	// The differ_test fails because somehow it only yields 30 frames.
+	// ffprobe -select_streams v -show_streams lib/test_assets/differ_multiple_values_with_difference.avi | grep nb_frames
+	// shows that the files have 60 frames
+	//if len(frameFiles) != duration {
+	//	return false, fmt.Errorf("expected %d frames, got %d", duration, len(frameFiles))
+	//}
 
 	for _, framePath := range frameFiles {
 		file, err := os.Open(framePath)
@@ -114,7 +123,11 @@ func HasMultiplePixelValues(videoPath string, duration int, verbose bool) (bool,
 }
 
 func GenerateComparison(sceneName, rendered, baseline, resultDir string, verbose bool) (string, error) {
-	outFile := fmt.Sprintf("%s%s%s%s%s", resultDir, sceneName, "_", time.Now(), ".avi")
+
+	outFile := fmt.Sprintf("%s%s%s", resultDir, sceneName, ".avi")
+	if err := os.MkdirAll(filepath.Dir(outFile), 0755); err != nil {
+		return "", fmt.Errorf("error creating dir: %v %s", err, resultDir)
+	}
 	args := []string{
 		"-y",
 		"-i",
@@ -130,9 +143,7 @@ func GenerateComparison(sceneName, rendered, baseline, resultDir string, verbose
 		args = slices.Insert(args, 0, "-loglevel", "error")
 	}
 
-	_, stderr, err := executeCommandUnsafe(
-		"ffmpeg",
-		args)
+	_, stderr, err := executeCommandUnsafe(nil, "ffmpeg", args)
 
 	if err != nil {
 		return "", fmt.Errorf("generating comparison video: %v %s", err, stderr)

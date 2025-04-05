@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3 uid="uid://0c8ajjf6njs4"]
+
+[ext_resource type="Texture2D" uid="uid://dhut2sg6ihy3p" path="res://basic_plants.png" id="1_wtcfe"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wtcfe"]
+atlas = ExtResource("1_wtcfe")
+region = Rect2(49, 1, 15, 14)
+
+[node name="Node2D" type="Node2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(55, 51)
+scale = Vector2(5, 5)
+texture = SubResource("AtlasTexture_wtcfe")
